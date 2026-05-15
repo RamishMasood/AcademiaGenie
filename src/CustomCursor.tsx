@@ -55,7 +55,11 @@ export default function CustomCursor() {
           scale: isHovering ? 2 : 1,
           backgroundColor: isHovering ? '#fff' : '#6366f1'
         }}
-        transition={{ type: 'spring', stiffness: 500, damping: 28, mass: 0.5 }}
+        transition={{ 
+          x: { type: 'tween', duration: 0 },
+          y: { type: 'tween', duration: 0 },
+          default: { type: 'spring', stiffness: 500, damping: 28 }
+        }}
       />
       <motion.div
         className="fixed top-0 left-0 w-8 h-8 rounded-full border border-indigo-400 pointer-events-none z-[9998]"
@@ -65,7 +69,11 @@ export default function CustomCursor() {
           scale: isHovering ? 1.5 : 1,
           opacity: isHovering ? 0 : 0.5
         }}
-        transition={{ type: 'spring', stiffness: 250, damping: 20, mass: 0.8 }}
+        transition={{ 
+          x: { type: 'tween', duration: 0 },
+          y: { type: 'tween', duration: 0 },
+          default: { type: 'spring', stiffness: 250, damping: 20 }
+        }}
       />
       <style>{`
         * {
