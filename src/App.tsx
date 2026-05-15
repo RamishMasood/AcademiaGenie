@@ -712,9 +712,12 @@ export default function App() {
                                 onClick={() => navigator.clipboard.writeText(emailContent)}>
                                   Copy to Clipboard
                                 </button>
-                                <div className="prose prose-invert prose-p:leading-relaxed prose-a:text-indigo-400 max-w-none font-sans whitespace-pre-line pt-10 sm:pt-0 overflow-x-auto text-sm sm:text-base">
-                                  <Markdown>{emailContent}</Markdown>
-                                </div>
+                                <textarea 
+                                  className="w-full bg-transparent border-none outline-none resize-y text-sm sm:text-base text-gray-100 font-sans pt-10 sm:pt-0"
+                                  value={emailContent}
+                                  onChange={(e) => setEmailContent(e.target.value)}
+                                  rows={18}
+                                />
                              </div>
                            
                            <div className="flex justify-end pt-8">
