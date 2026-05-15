@@ -9,11 +9,9 @@ const { PDFParse } = require('pdf-parse');
 import { GoogleGenAI } from "@google/genai";
 import fs from 'fs';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const upload = multer({ dest: 'uploads/' });
+const upload = multer({ dest: '/tmp/' });
 
-// Removed eager initialization
-
-  async function startServer() {
+async function createServer() {
   const app = express();
   const PORT = 3000;
 
@@ -348,9 +346,21 @@ const upload = multer({ dest: 'uploads/' });
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+  return app;
+}
+
+const appPromise = createServer();
+
+// For internal dev server
+if (process.env.NODE_ENV !== "production") {
+  appPromise.then(app => {
+    app.listen(3000, "0.0.0.0", () => {
+      console.log(`Server running on http://0.0.0.0:3000`);
+    });
   });
 }
 
-startServer();
+export default async (req: any, res: any) => {
+  const app = await appPromise;
+  return app(req, res);
+};
