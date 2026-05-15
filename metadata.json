@@ -1,0 +1,6 @@
+{
+  "name": "AcademiaGenie",
+  "description": "An autonomous AI agent system to help students analyze and strengthen their academic profiles for RA/TA/GA and PhD opportunities.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
