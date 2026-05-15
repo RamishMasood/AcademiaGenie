@@ -77,6 +77,7 @@ export default function App() {
 
   const [targetCountry, setTargetCountry] = useState<string>('');
   const [selectedUniversityFilter, setSelectedUniversityFilter] = useState<string>('All');
+  const [selectedUniversityTypeFilter, setSelectedUniversityTypeFilter] = useState<string>('All');
 
   const [selectedProfessorIdx, setSelectedProfessorIdx] = useState<number | ''>('');
   const [emailContent, setEmailContent] = useState<string | null>(null);
@@ -167,6 +168,7 @@ export default function App() {
     setIsLoading(true);
     setError(null);
     setSelectedUniversityFilter('All');
+    setSelectedUniversityTypeFilter('All');
     try {
         const response = await fetch('/api/suggest-opportunities', { 
           method: 'POST', 
@@ -256,9 +258,15 @@ export default function App() {
 
   const filteredProfessors = useMemo(() => {
     if (!suggestions?.professors) return [];
-    if (selectedUniversityFilter === 'All') return suggestions.professors;
-    return suggestions.professors.filter(p => p.university === selectedUniversityFilter);
-  }, [suggestions, selectedUniversityFilter]);
+    let filtered = suggestions.professors;
+    if (selectedUniversityFilter !== 'All') {
+      filtered = filtered.filter(p => p.university === selectedUniversityFilter);
+    }
+    if (selectedUniversityTypeFilter !== 'All') {
+      filtered = filtered.filter(p => p.universityType?.toLowerCase() === selectedUniversityTypeFilter.toLowerCase());
+    }
+    return filtered;
+  }, [suggestions, selectedUniversityFilter, selectedUniversityTypeFilter]);
 
   const fetchRoadmap = async () => {
     if (!cvText) return;
@@ -407,7 +415,7 @@ export default function App() {
               <div className="w-20 h-20 bg-indigo-100 rounded-full flex items-center justify-center mb-6 shadow-inner cursor-pointer" onClick={() => document.getElementById('file-upload')?.click()}>
                 <FileText className="w-10 h-10 text-indigo-600" />
               </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-3 tracking-tight">Upload your CV & Transcript</h3>
+              <h3 className="text-2xl font-bold text-gray-900 mb-3 tracking-tight">Upload your CV</h3>
               <p className="text-gray-600 max-w-md mb-8 text-lg">Drop your files here to ignite an AI-powered analysis of your academic profile.</p>
               <input type="file" multiple className="hidden" id="file-upload" onChange={handleFileUpload} />
               <label 
@@ -521,19 +529,19 @@ export default function App() {
                         ))}
                       </select>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
                       <button 
                         onClick={fetchSuggestions} 
                         className={cn(
-                          "px-5 py-2 rounded-xl font-medium transition-all flex items-center justify-center gap-2 shadow-sm",
-                          suggestions ? "bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200" : "bg-indigo-600 text-white hover:bg-indigo-700 h-[38px]"
+                          "px-5 py-2 rounded-xl font-medium transition-all flex items-center justify-center gap-2 shadow-sm whitespace-nowrap h-[40px]",
+                          suggestions ? "bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200" : "bg-indigo-600 text-white hover:bg-indigo-700"
                         )}
                       >
                         <Search className="w-4 h-4"/> {suggestions ? "Search Again" : "Discover"}
                       </button>
                       
                       {suggestions && (
-                        <button onClick={exportToCsv} className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-medium shadow-md transition-all flex items-center gap-2 h-[38px]">
+                        <button onClick={exportToCsv} className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-medium shadow-md transition-all flex items-center justify-center gap-2 whitespace-nowrap h-[40px]">
                           <Download className="w-4 h-4"/> Export CSV
                         </button>
                       )}
@@ -573,19 +581,34 @@ export default function App() {
                   <div>
                     <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 gap-4">
                       <h4 className="text-lg font-bold text-gray-900 flex items-center gap-2"><GraduationCap className="w-5 h-5 text-indigo-600"/> High-Match Professors</h4>
-                      {universities.length > 1 && (
+                      <div className="flex flex-wrap items-center gap-4">
                         <div className="flex items-center gap-2">
-                           <span className="text-sm font-medium text-gray-600">Filter:</span>
+                           <span className="text-sm font-medium text-gray-600">Type:</span>
                            <select 
                              className="border-gray-300 border focus:border-indigo-500 focus:ring-indigo-500 rounded-lg p-2 text-sm bg-white"
-                             value={selectedUniversityFilter}
-                             onChange={(e) => setSelectedUniversityFilter(e.target.value)}
+                             value={selectedUniversityTypeFilter}
+                             onChange={(e) => setSelectedUniversityTypeFilter(e.target.value)}
                            >
-                             <option value="All">All Universities</option>
-                             {universities.map(u => <option key={u} value={u}>{u}</option>)}
+                             <option value="All">All Types</option>
+                             <option value="Government">Government</option>
+                             <option value="Semi-Government">Semi-Government</option>
+                             <option value="Private">Private</option>
                            </select>
                         </div>
-                      )}
+                        {universities.length > 1 && (
+                          <div className="flex items-center gap-2">
+                             <span className="text-sm font-medium text-gray-600">University:</span>
+                             <select 
+                               className="border-gray-300 border focus:border-indigo-500 focus:ring-indigo-500 rounded-lg p-2 text-sm bg-white"
+                               value={selectedUniversityFilter}
+                               onChange={(e) => setSelectedUniversityFilter(e.target.value)}
+                             >
+                               <option value="All">All Universities</option>
+                               {universities.map(u => <option key={u} value={u}>{u}</option>)}
+                             </select>
+                          </div>
+                        )}
+                      </div>
                     </div>
                     <div className="grid grid-cols-1 gap-4">
                       {filteredProfessors?.map((prof, i) => (
