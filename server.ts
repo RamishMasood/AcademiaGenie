@@ -27,6 +27,12 @@ const __dirname_resolved = isESM
   : (typeof __dirname !== 'undefined' ? __dirname : process.cwd());
 const upload = multer({ dest: "/tmp/" });
 
+function getAiModel(ai: any, selectedModel: string) {
+  // Use a reliable model name if the requested one is invalid or missing
+  const modelName = selectedModel || "gemini-1.5-flash";
+  return ai.getGenerativeModel({ model: modelName });
+}
+
 async function createServer() {
   const app = express();
   
@@ -96,12 +102,12 @@ async function createServer() {
       ${cvText}
       `;
 
-      const response = await ai.models.generateContent({
-        model: selectedModel || "gemini-3-flash-preview",
-        contents: prompt,
-        config: { responseMimeType: "application/json" }
+      const model = getAiModel(ai, selectedModel);
+      const result = await model.generateContent({
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: { responseMimeType: "application/json" }
       });
-      const text = response.text || "{}";
+      const text = result.response.text() || "{}";
       const cleanedJSON = text.replace(/^\s*```json\n?|\n?```\s*$/g, '');
       res.json({ analysis: JSON.parse(cleanedJSON || "{}"), cvText: cvText });
     } catch (error: any) {
@@ -127,15 +133,10 @@ async function createServer() {
       const apiKey = customApiKey || process.env.GEMINI_API_KEY;
       if (!apiKey) return res.status(400).json({ error: "No API key provided" });
       
-      const ai = new GoogleGenAI({ 
-        apiKey,
-        httpOptions: { headers: { 'User-Agent': 'aistudio-build' } }
-      });
-      const response = await ai.models.generateContent({
-        model: selectedModel || "gemini-3-flash-preview",
-        contents: "Say hello briefly."
-      });
-      res.json({ status: "success", message: response.text });
+      const ai = new GoogleGenAI(apiKey);
+      const model = getAiModel(ai, selectedModel);
+      const result = await model.generateContent("Say hello briefly.");
+      res.json({ status: "success", message: result.response.text() });
     } catch (error: any) {
       console.error('API Key Test Error:', error);
       res.status(500).json({ error: error.message });
@@ -186,12 +187,12 @@ async function createServer() {
       CV Content: ${cvText}
       `;
 
-      const response = await ai.models.generateContent({
-        model: selectedModel || "gemini-3-flash-preview",
-        contents: prompt,
-        config: { responseMimeType: "application/json" }
+      const model = getAiModel(ai, selectedModel);
+      const result = await model.generateContent({
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: { responseMimeType: "application/json" }
       });
-      const text = response.text || "{}";
+      const text = result.response.text() || "{}";
       const cleanedJSON = text.replace(/^\s*```json\n?|\n?```\s*$/g, '');
       res.json({ suggestions: JSON.parse(cleanedJSON || "{}") });
     } catch (error: any) {
@@ -264,11 +265,9 @@ async function createServer() {
       
       Output ONLY the final email content. Do not include any other text or wrappers.
       `;
-      const response = await ai.models.generateContent({
-        model: selectedModel || "gemini-3-flash-preview",
-        contents: prompt
-      });
-      res.json({ email: response.text });
+      const model = getAiModel(ai, selectedModel);
+      const result = await model.generateContent(prompt);
+      res.json({ email: result.response.text() });
     } catch (error: any) {
       console.error(error);
       const errorStr = JSON.stringify(error);
@@ -311,12 +310,12 @@ async function createServer() {
       }
       CV Content: ${cvText}
       `;
-      const response = await ai.models.generateContent({
-        model: selectedModel || "gemini-3-flash-preview",
-        contents: prompt,
-        config: { responseMimeType: "application/json" }
+      const model = getAiModel(ai, selectedModel);
+      const result = await model.generateContent({
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: { responseMimeType: "application/json" }
       });
-      const text = response.text || "{}";
+      const text = result.response.text() || "{}";
       const cleanedJSON = text.replace(/^\s*```json\n?|\n?```\s*$/g, '');
       res.json({ roadmap: JSON.parse(cleanedJSON || "{}") });
     } catch (error: any) {
@@ -350,8 +349,10 @@ async function createServer() {
   // Mount the customized router
   app.use('/api', apiRouter);
 
-  // Vite middleware for development
+  // In production (especially Vercel), we don't serve static files from Express.
+  // Vercel handles static files via the CDN and vercel.json rewrites.
   if (process.env.NODE_ENV !== "production") {
+    console.log("[Server] Mounting Vite middleware for development...");
     const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
@@ -359,28 +360,35 @@ async function createServer() {
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
+    console.log("[Server] Production mode: skipping static file serving (handled by Vercel/CDN)");
   }
 
   return app;
 }
 
-const appPromise = createServer();
+const appPromise = createServer().catch(err => {
+  console.error("[Server] CRITICAL: Failed to create server app:", err);
+  throw err;
+});
 
 // For local development and dev server
 if (process.env.NODE_ENV !== "production") {
   appPromise.then(app => {
-    app.listen(3000, "0.0.0.0", () => {
-      console.log(`Server running on http://0.0.0.0:3000`);
-    });
-  });
+    if (app && typeof app.listen === 'function') {
+      app.listen(3000, "0.0.0.0", () => {
+        console.log(`Server running on http://0.0.0.0:3000`);
+      });
+    }
+  }).catch(err => console.error("[Server] Failed to listen:", err));
 }
 
 export default async (req: any, res: any) => {
-  const app = await appPromise;
-  return app(req, res);
+  try {
+    const app = await appPromise;
+    if (!app) throw new Error("Express app not initialized");
+    return app(req, res);
+  } catch (err: any) {
+    console.error("[Server] Handler Error:", err);
+    res.status(500).json({ error: "Server failed to start or initialize", details: err.message });
+  }
 };
