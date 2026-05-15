@@ -1,20 +1,19 @@
 import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
-import { createServer as createViteServer } from "vite";
-import { createRequire } from 'module';
+import multer from "multer";
+import { createRequire } from "module";
 const require = createRequire(import.meta.url);
-const multer = require('multer');
-const { PDFParse } = require('pdf-parse');
+const pdf = require("pdf-parse");
 import { GoogleGenAI } from "@google/genai";
-import fs from 'fs';
+import fs from "fs";
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const upload = multer({ dest: '/tmp/' });
+const upload = multer({ dest: "/tmp/" });
 
 async function createServer() {
   const app = express();
-  const PORT = 3000;
-
+  
   app.use(express.json());
 
   // API logging middleware
@@ -36,7 +35,8 @@ async function createServer() {
       if (!apiKey) {
         return res.status(500).json({ error: "Gemini API key not configured" });
       }
-      const ai = new GoogleGenAI({
+      
+      const ai = new GoogleGenAI({ 
         apiKey,
         httpOptions: { headers: { 'User-Agent': 'aistudio-build' } }
       });
@@ -46,12 +46,12 @@ async function createServer() {
 
       for (const file of files) {
         try {
-          const data = fs.readFileSync(file.path);
-          const parser = new PDFParse({ data });
-          const pdfData = await parser.getText();
+          const dataBuffer = fs.readFileSync(file.path);
+          const pdfData = await pdf(dataBuffer);
           cvText += pdfData.text + "\n";
+        } catch (pdfErr) {
+          console.error("PDF Parsing error for file:", file.originalname, pdfErr);
         } finally {
-          // cleanup uploaded file even if processing fails
           if (fs.existsSync(file.path)) {
             fs.unlinkSync(file.path);
           }
@@ -80,13 +80,13 @@ async function createServer() {
       `;
 
       const response = await ai.models.generateContent({
-        model: selectedModel || "gemini-flash-latest",
+        model: selectedModel || "gemini-3-flash-preview",
         contents: prompt,
         config: { responseMimeType: "application/json" }
       });
       const text = response.text || "{}";
-
-      res.json({ analysis: JSON.parse(text.replace(/^\s*```json\n?|\n?```\s*$/g, '') || "{}"), cvText: cvText });
+      const cleanedJSON = text.replace(/^\s*```json\n?|\n?```\s*$/g, '');
+      res.json({ analysis: JSON.parse(cleanedJSON || "{}"), cvText: cvText });
     } catch (error: any) {
       console.error('CV Analysis Error:', error);
       const errorStr = JSON.stringify(error);
@@ -110,12 +110,12 @@ async function createServer() {
       const apiKey = customApiKey || process.env.GEMINI_API_KEY;
       if (!apiKey) return res.status(400).json({ error: "No API key provided" });
       
-      const ai = new GoogleGenAI({
+      const ai = new GoogleGenAI({ 
         apiKey,
         httpOptions: { headers: { 'User-Agent': 'aistudio-build' } }
       });
       const response = await ai.models.generateContent({
-        model: selectedModel || "gemini-flash-latest",
+        model: selectedModel || "gemini-3-flash-preview",
         contents: "Say hello briefly."
       });
       res.json({ status: "success", message: response.text });
@@ -130,7 +130,7 @@ async function createServer() {
       const { cvText, country, customApiKey, selectedModel, excludedProfessors } = req.body;
       const apiKey = customApiKey || process.env.GEMINI_API_KEY;
       if (!apiKey) throw new Error("Gemini API key not configured");
-      const ai = new GoogleGenAI({
+      const ai = new GoogleGenAI({ 
         apiKey,
         httpOptions: { headers: { 'User-Agent': 'aistudio-build' } }
       });
@@ -168,13 +168,15 @@ async function createServer() {
       }
       CV Content: ${cvText}
       `;
+
       const response = await ai.models.generateContent({
-        model: selectedModel || "gemini-flash-latest",
+        model: selectedModel || "gemini-3-flash-preview",
         contents: prompt,
         config: { responseMimeType: "application/json" }
       });
       const text = response.text || "{}";
-      res.json({ suggestions: JSON.parse(text.replace(/^\s*```json\n?|\n?```\s*$/g, '') || "{}") });
+      const cleanedJSON = text.replace(/^\s*```json\n?|\n?```\s*$/g, '');
+      res.json({ suggestions: JSON.parse(cleanedJSON || "{}") });
     } catch (error: any) {
       console.error(error);
       const errorStr = JSON.stringify(error);
@@ -197,7 +199,7 @@ async function createServer() {
       const { cvText, professor, customApiKey, selectedModel } = req.body;
       const apiKey = customApiKey || process.env.GEMINI_API_KEY;
       if (!apiKey) throw new Error("Gemini API key not configured");
-      const ai = new GoogleGenAI({
+      const ai = new GoogleGenAI({ 
         apiKey,
         httpOptions: { headers: { 'User-Agent': 'aistudio-build' } }
       });
@@ -246,7 +248,7 @@ async function createServer() {
       Output ONLY the final email content. Do not include any other text or wrappers.
       `;
       const response = await ai.models.generateContent({
-        model: selectedModel || "gemini-flash-latest",
+        model: selectedModel || "gemini-3-flash-preview",
         contents: prompt
       });
       res.json({ email: response.text });
@@ -272,7 +274,7 @@ async function createServer() {
       const { cvText, customApiKey, selectedModel } = req.body;
       const apiKey = customApiKey || process.env.GEMINI_API_KEY;
       if (!apiKey) throw new Error("Gemini API key not configured");
-      const ai = new GoogleGenAI({
+      const ai = new GoogleGenAI({ 
         apiKey,
         httpOptions: { headers: { 'User-Agent': 'aistudio-build' } }
       });
@@ -293,13 +295,13 @@ async function createServer() {
       CV Content: ${cvText}
       `;
       const response = await ai.models.generateContent({
-        model: selectedModel || "gemini-flash-latest",
+        model: selectedModel || "gemini-3-flash-preview",
         contents: prompt,
         config: { responseMimeType: "application/json" }
       });
       const text = response.text || "{}";
       const cleanedJSON = text.replace(/^\s*```json\n?|\n?```\s*$/g, '');
-      res.json({ roadmap: JSON.parse(cleanedJSON) });
+      res.json({ roadmap: JSON.parse(cleanedJSON || "{}") });
     } catch (error: any) {
       console.error(error);
       const errorStr = JSON.stringify(error);
@@ -333,13 +335,14 @@ async function createServer() {
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
+    const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.join(__dirname, 'dist');
+    const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath));
     app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
@@ -351,7 +354,7 @@ async function createServer() {
 
 const appPromise = createServer();
 
-// For internal dev server
+// For local development and dev server
 if (process.env.NODE_ENV !== "production") {
   appPromise.then(app => {
     app.listen(3000, "0.0.0.0", () => {

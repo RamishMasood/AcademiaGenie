@@ -181,14 +181,25 @@ export default function App() {
           }) 
         });
         const responseText = await response.text();
+        let data: any = {};
+        try {
+          data = JSON.parse(responseText);
+        } catch (e) {
+          // If not JSON, handle as raw error
+          setError({ 
+            message: `Server Error (${response.status}): ${responseText.substring(0, 100)}`,
+            isRateLimit: response.status === 429
+          });
+          return;
+        }
+
         if (!response.ok) {
            setError({ 
-             message: response.status === 429 ? "AI Quota/Rate limit exceeded. Try changing the AI Model in 'Settings' or provide your own Gemini API key." : (JSON.parse(responseText).error || `Status ${response.status}`),
+             message: response.status === 429 ? "AI Quota/Rate limit exceeded. Try changing the AI Model in 'Settings' or provide your own Gemini API key." : (data.error || `Status ${response.status}`),
              isRateLimit: response.status === 429
            });
            return;
         }
-        const data = JSON.parse(responseText);
         
         // If it's a re-search (suggestions already exists), append new ones
         if (suggestions) {
@@ -261,14 +272,24 @@ export default function App() {
           body: JSON.stringify({ cvText, customApiKey, selectedModel }) 
         });
         const responseText = await response.text();
+        let data: any = {};
+        try {
+          data = JSON.parse(responseText);
+        } catch (e) {
+          setError({ 
+            message: `Server Error (${response.status}): ${responseText.substring(0, 100)}`,
+            isRateLimit: response.status === 429
+          });
+          return;
+        }
+
         if (!response.ok) {
            setError({ 
-             message: response.status === 429 ? "AI Quota/Rate limit exceeded. Try changing the AI Model in 'Settings' or provide your own Gemini API key." : (JSON.parse(responseText).error || `Status ${response.status}`),
+             message: response.status === 429 ? "AI Quota/Rate limit exceeded. Try changing the AI Model in 'Settings' or provide your own Gemini API key." : (data.error || `Status ${response.status}`),
              isRateLimit: response.status === 429
            });
            return;
         }
-        const data = JSON.parse(responseText);
         setRoadmap(data.roadmap);
     } catch(e: any) { 
       setError({ message: e.message || 'Error fetching roadmap', isRateLimit: false });
@@ -288,14 +309,24 @@ export default function App() {
             body: JSON.stringify({ cvText, professor: prof, customApiKey, selectedModel }) 
           });
           const responseText = await response.text();
+          let data: any = {};
+          try {
+            data = JSON.parse(responseText);
+          } catch (e) {
+            setError({ 
+              message: `Server Error (${response.status}): ${responseText.substring(0, 100)}`,
+              isRateLimit: response.status === 429
+            });
+            return;
+          }
+
           if (!response.ok) {
              setError({ 
-               message: response.status === 429 ? "AI Quota/Rate limit exceeded. Try changing the AI Model in 'Settings' or provide your own Gemini API key." : (JSON.parse(responseText).error || `Status ${response.status}`),
+               message: response.status === 429 ? "AI Quota/Rate limit exceeded. Try changing the AI Model in 'Settings' or provide your own Gemini API key." : (data.error || `Status ${response.status}`),
                isRateLimit: response.status === 429
              });
              return;
           }
-          const data = JSON.parse(responseText);
           setEmailContent(data.email);
       } catch(e: any) { 
         setError({ message: e.message || 'Error generating email', isRateLimit: false });
@@ -312,7 +343,18 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ customApiKey, selectedModel })
       });
-      const data = await resp.json();
+      const responseText = await resp.text();
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (e) {
+        setTestResult({ 
+          success: false, 
+          message: `Server Error (${resp.status}): ${responseText.substring(0, 100)}${responseText.length > 100 ? '...' : ''}` 
+        });
+        return;
+      }
+      
       if (resp.ok) {
         setTestResult({ success: true, message: "Connection successful! AI says: " + data.message });
       } else {
