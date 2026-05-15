@@ -71,7 +71,7 @@ export default function App() {
   
   // Custom API Settings
   const [customApiKey, setCustomApiKey] = useState<string>('');
-  const [selectedModel, setSelectedModel] = useState<string>('gemini-1.5-flash');
+  const [selectedModel, setSelectedModel] = useState<string>('gemini-3-flash-preview');
   const [isTestingKey, setIsTestingKey] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
 
@@ -818,12 +818,12 @@ export default function App() {
                   onChange={(e) => setSelectedModel(e.target.value)}
                 >
                   <optgroup label="Recommended">
-                    <option value="gemini-1.5-flash">Gemini 1.5 Flash (Fastest)</option>
-                    <option value="gemini-1.5-flash-8b">Gemini 1.5 Flash-8B (Efficient)</option>
+                    <option value="gemini-3-flash-preview">Gemini 3 Flash (Next-Gen)</option>
+                    <option value="gemini-3.1-flash-lite">Gemini Flash Lite (Fastest)</option>
                   </optgroup>
                   <optgroup label="Advanced">
-                    <option value="gemini-1.5-pro">Gemini 1.5 Pro (Best Reasoning)</option>
-                    <option value="gemini-2.0-flash-exp">Gemini 2.0 Flash (Experimental Next-Gen)</option>
+                    <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro (Elite Reasoning)</option>
+                    <option value="gemini-flash-latest">Gemini Flash (Latest)</option>
                   </optgroup>
                 </select>
                 <p className="text-xs text-gray-400 leading-relaxed italic">This model choice applies regardless of whether you use a custom key or the system key.</p>

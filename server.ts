@@ -11,13 +11,18 @@ let pdf: any = null;
 const getPdfParser = () => {
   if (!pdf) {
     try {
-      pdf = _require("pdf-parse");
+      const mod = _require("pdf-parse");
+      // Handle various export patterns
+      pdf = typeof mod === 'function' ? mod : (mod?.default || mod);
     } catch (e) {
       console.error("Failed to load pdf-parse:", e);
-      return () => { throw new Error("PDF parser not available"); };
     }
   }
-  return pdf;
+  // Return a safe fallback if loading fails
+  return typeof pdf === 'function' ? pdf : () => { 
+    console.error("PDF parser is not a function or failed to load");
+    return { text: "" }; 
+  };
 };
 import { GoogleGenAI } from "@google/genai";
 import fs from "fs";
@@ -26,12 +31,6 @@ const __dirname_resolved = isESM
   ? path.dirname(fileURLToPath(import.meta.url)) 
   : (typeof __dirname !== 'undefined' ? __dirname : process.cwd());
 const upload = multer({ dest: "/tmp/" });
-
-function getAiModel(ai: any, selectedModel: string) {
-  // Use a reliable model name if the requested one is invalid or missing
-  const modelName = selectedModel || "gemini-1.5-flash";
-  return ai.getGenerativeModel({ model: modelName });
-}
 
 async function createServer() {
   const app = express();
@@ -69,9 +68,14 @@ async function createServer() {
 
       for (const file of files) {
         try {
+          const isPdf = file.mimetype === 'application/pdf' || file.originalname.toLowerCase().endsWith('.pdf');
+          if (!isPdf) {
+            console.log(`[CV Analyze] Skipping non-PDF file: ${file.originalname}`);
+            continue;
+          }
           const dataBuffer = fs.readFileSync(file.path);
           const pdfData = await pdfParser(dataBuffer);
-          cvText += pdfData.text + "\n";
+          cvText += (pdfData?.text || "") + "\n";
         } catch (pdfErr) {
           console.error("PDF Parsing error for file:", file.originalname, pdfErr);
         } finally {
@@ -102,12 +106,12 @@ async function createServer() {
       ${cvText}
       `;
 
-      const model = getAiModel(ai, selectedModel);
-      const result = await model.generateContent({
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: { responseMimeType: "application/json" }
+      const response = await ai.models.generateContent({
+        model: selectedModel || "gemini-3-flash-preview",
+        contents: prompt,
+        config: { responseMimeType: "application/json" }
       });
-      const text = result.response.text() || "{}";
+      const text = response.text || "{}";
       const cleanedJSON = text.replace(/^\s*```json\n?|\n?```\s*$/g, '');
       res.json({ analysis: JSON.parse(cleanedJSON || "{}"), cvText: cvText });
     } catch (error: any) {
@@ -133,10 +137,15 @@ async function createServer() {
       const apiKey = customApiKey || process.env.GEMINI_API_KEY;
       if (!apiKey) return res.status(400).json({ error: "No API key provided" });
       
-      const ai = new GoogleGenAI(apiKey);
-      const model = getAiModel(ai, selectedModel);
-      const result = await model.generateContent("Say hello briefly.");
-      res.json({ status: "success", message: result.response.text() });
+      const ai = new GoogleGenAI({ 
+        apiKey,
+        httpOptions: { headers: { 'User-Agent': 'aistudio-build' } }
+      });
+      const response = await ai.models.generateContent({
+        model: selectedModel || "gemini-3-flash-preview",
+        contents: "Say hello briefly."
+      });
+      res.json({ status: "success", message: response.text });
     } catch (error: any) {
       console.error('API Key Test Error:', error);
       res.status(500).json({ error: error.message });
@@ -187,12 +196,13 @@ async function createServer() {
       CV Content: ${cvText}
       `;
 
-      const model = getAiModel(ai, selectedModel);
-      const result = await model.generateContent({
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: { responseMimeType: "application/json" }
+      const modelName = selectedModel || "gemini-3-flash-preview";
+      const response = await ai.models.generateContent({
+        model: modelName,
+        contents: prompt,
+        config: { responseMimeType: "application/json" }
       });
-      const text = result.response.text() || "{}";
+      const text = response.text || "{}";
       const cleanedJSON = text.replace(/^\s*```json\n?|\n?```\s*$/g, '');
       res.json({ suggestions: JSON.parse(cleanedJSON || "{}") });
     } catch (error: any) {
@@ -265,9 +275,11 @@ async function createServer() {
       
       Output ONLY the final email content. Do not include any other text or wrappers.
       `;
-      const model = getAiModel(ai, selectedModel);
-      const result = await model.generateContent(prompt);
-      res.json({ email: result.response.text() });
+      const response = await ai.models.generateContent({
+        model: selectedModel || "gemini-3-flash-preview",
+        contents: prompt
+      });
+      res.json({ email: response.text });
     } catch (error: any) {
       console.error(error);
       const errorStr = JSON.stringify(error);
@@ -310,12 +322,12 @@ async function createServer() {
       }
       CV Content: ${cvText}
       `;
-      const model = getAiModel(ai, selectedModel);
-      const result = await model.generateContent({
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: { responseMimeType: "application/json" }
+      const response = await ai.models.generateContent({
+        model: selectedModel || "gemini-3-flash-preview",
+        contents: prompt,
+        config: { responseMimeType: "application/json" }
       });
-      const text = result.response.text() || "{}";
+      const text = response.text || "{}";
       const cleanedJSON = text.replace(/^\s*```json\n?|\n?```\s*$/g, '');
       res.json({ roadmap: JSON.parse(cleanedJSON || "{}") });
     } catch (error: any) {
@@ -349,18 +361,24 @@ async function createServer() {
   // Mount the customized router
   app.use('/api', apiRouter);
 
-  // In production (especially Vercel), we don't serve static files from Express.
-  // Vercel handles static files via the CDN and vercel.json rewrites.
-  if (process.env.NODE_ENV !== "production") {
-    console.log("[Server] Mounting Vite middleware for development...");
+  // Serve static files in production (required for Cloud Run)
+  if (process.env.NODE_ENV === "production") {
+    console.log("[Server] Production mode: serving static files from /dist");
+    const distPath = path.join(process.cwd(), 'dist');
+    app.use(express.static(distPath));
+    app.get('*', (req, res, next) => {
+      // Skip if it's an API route (though /api is mounted first)
+      if (req.path.startsWith('/api')) return next();
+      res.sendFile(path.join(distPath, 'index.html'));
+    });
+  } else {
+    console.log("[Server] Development mode: mounting Vite middleware...");
     const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
     });
     app.use(vite.middlewares);
-  } else {
-    console.log("[Server] Production mode: skipping static file serving (handled by Vercel/CDN)");
   }
 
   return app;
@@ -368,19 +386,18 @@ async function createServer() {
 
 const appPromise = createServer().catch(err => {
   console.error("[Server] CRITICAL: Failed to create server app:", err);
-  throw err;
+  process.exit(1);
 });
 
-// For local development and dev server
-if (process.env.NODE_ENV !== "production") {
-  appPromise.then(app => {
-    if (app && typeof app.listen === 'function') {
-      app.listen(3000, "0.0.0.0", () => {
-        console.log(`Server running on http://0.0.0.0:3000`);
-      });
-    }
-  }).catch(err => console.error("[Server] Failed to listen:", err));
-}
+// Start listening - Essential for Cloud Run
+appPromise.then(app => {
+  const PORT = process.env.PORT || 3000;
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`[Server] Running on http://0.0.0.0:${PORT} (NODE_ENV=${process.env.NODE_ENV})`);
+  });
+}).catch(err => {
+  console.error("[Server] Failed during initialization:", err);
+});
 
 export default async (req: any, res: any) => {
   try {
