@@ -2,13 +2,29 @@ import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
 import multer from "multer";
+
+console.log("[Server] Module loading...");
 import { createRequire } from "module";
-const require = createRequire(import.meta.url);
-const pdf = require("pdf-parse");
+const isESM = typeof import.meta !== 'undefined' && import.meta.url;
+const _require = isESM ? createRequire(import.meta.url) : (typeof require !== 'undefined' ? require : null);
+let pdf: any = null;
+const getPdfParser = () => {
+  if (!pdf) {
+    try {
+      pdf = _require("pdf-parse");
+    } catch (e) {
+      console.error("Failed to load pdf-parse:", e);
+      return () => { throw new Error("PDF parser not available"); };
+    }
+  }
+  return pdf;
+};
 import { GoogleGenAI } from "@google/genai";
 import fs from "fs";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const __dirname_resolved = isESM 
+  ? path.dirname(fileURLToPath(import.meta.url)) 
+  : (typeof __dirname !== 'undefined' ? __dirname : process.cwd());
 const upload = multer({ dest: "/tmp/" });
 
 async function createServer() {
@@ -43,11 +59,12 @@ async function createServer() {
 
       const files = req.files as Express.Multer.File[];
       let cvText = "";
+      const pdfParser = getPdfParser();
 
       for (const file of files) {
         try {
           const dataBuffer = fs.readFileSync(file.path);
-          const pdfData = await pdf(dataBuffer);
+          const pdfData = await pdfParser(dataBuffer);
           cvText += pdfData.text + "\n";
         } catch (pdfErr) {
           console.error("PDF Parsing error for file:", file.originalname, pdfErr);
