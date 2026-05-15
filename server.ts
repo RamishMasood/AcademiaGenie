@@ -7,22 +7,29 @@ console.log("[Server] Module loading...");
 import { createRequire } from "module";
 const isESM = typeof import.meta !== 'undefined' && import.meta.url;
 const _require = isESM ? createRequire(import.meta.url) : (typeof require !== 'undefined' ? require : null);
-let pdf: any = null;
 const getPdfParser = () => {
-  if (!pdf) {
-    try {
-      const mod = _require("pdf-parse");
-      // Handle various export patterns
-      pdf = typeof mod === 'function' ? mod : (mod?.default || mod);
-    } catch (e) {
-      console.error("Failed to load pdf-parse:", e);
-    }
-  }
-  // Return a safe fallback if loading fails
-  return typeof pdf === 'function' ? pdf : () => { 
-    console.error("PDF parser is not a function or failed to load");
-    return { text: "" }; 
-  };
+    return async (dataBuffer: Buffer) => {
+        try {
+            const mod = _require("pdf-parse");
+            if (mod && mod.PDFParse) {
+                // Latest class-based API
+                const parser = new mod.PDFParse({ data: dataBuffer });
+                const result = await parser.getText();
+                return { text: result.text };
+            } else if (typeof mod === 'function') {
+                return await mod(dataBuffer);
+            } else if (mod && typeof mod.default === 'function') {
+                return await mod.default(dataBuffer);
+            } else if (typeof mod === 'object' && !mod.PDFParse) {
+                // If it's a generic export object and not PDFParse class
+                console.error("No valid pdf parsing function found in module:", mod);
+                return { text: "" };
+            }
+        } catch(e) {
+            console.error("Failed to parse PDF data:", e);
+            return { text: "" };
+        }
+    };
 };
 import { GoogleGenAI } from "@google/genai";
 import fs from "fs";
@@ -391,7 +398,7 @@ const appPromise = createServer().catch(err => {
 
 // Start listening - Essential for Cloud Run
 appPromise.then(app => {
-  const PORT = process.env.PORT || 3000;
+  const PORT = Number(process.env.PORT) || 3000;
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`[Server] Running on http://0.0.0.0:${PORT} (NODE_ENV=${process.env.NODE_ENV})`);
   });
