@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, useScroll, useTransform, AnimatePresence } from 'motion/react';
-import { ChevronRight, ArrowRight, Zap, GraduationCap, Map, Target, Bot, CheckCircle2, FileText, Search, Sparkles, Database, Mail } from 'lucide-react';
+import { ChevronRight, ArrowRight, Zap, GraduationCap, Map, Target, Bot, CheckCircle2, FileText, Search, Sparkles, Database, Mail, XCircle } from 'lucide-react';
 
 interface LandingProps {
   onStart: () => void;
@@ -139,37 +139,83 @@ export default function LandingPage({ onStart }: LandingProps) {
           </div>
         </motion.div>
 
-        {/* Dashboard Preview Mockup */}
+        {/* Problem vs Solution Section */}
         <motion.div 
           initial={{ opacity: 0, y: 50 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4, duration: 1, ease: "easeOut" }}
-          style={{ opacity: opacityTransform }}
-          className="w-full max-w-5xl mt-24 relative rounded-2xl border border-white/10 bg-[#0f172a]/80 shadow-2xl backdrop-blur-2xl overflow-hidden"
+          className="w-full mt-24 mb-16 relative"
         >
-          <div className="absolute inset-0 bg-gradient-to-t from-[#020617] via-transparent to-transparent z-10 pointer-events-none"></div>
-          <div className="h-10 border-b border-white/5 flex items-center px-4 gap-2 bg-[#020617]/50">
-             <div className="flex gap-1.5">
-               <div className="w-3 h-3 rounded-full bg-slate-600"></div>
-               <div className="w-3 h-3 rounded-full bg-slate-600"></div>
-               <div className="w-3 h-3 rounded-full bg-slate-600"></div>
-             </div>
-          </div>
-          <div className="p-8 relative">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 opacity-60">
-               <div className="col-span-2 space-y-4">
-                  <div className="h-8 w-1/3 bg-slate-800 rounded-lg"></div>
-                  <div className="h-32 bg-slate-800/50 rounded-xl border border-slate-700/50"></div>
-                  <div className="space-y-2 mt-8">
-                     <div className="h-12 bg-indigo-900/40 rounded-xl border border-indigo-500/20"></div>
-                     <div className="h-12 bg-slate-800/40 rounded-xl border border-slate-700/50"></div>
-                     <div className="h-12 bg-slate-800/40 rounded-xl border border-slate-700/50"></div>
-                  </div>
-               </div>
-               <div className="space-y-4">
-                 <div className="h-48 bg-slate-800/50 rounded-xl border border-slate-700/50"></div>
-                 <div className="h-48 bg-slate-800/50 rounded-xl border border-slate-700/50"></div>
-               </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-12 w-full text-left">
+            {/* The Problem (Manual Process) */}
+            <div className="bg-slate-900/40 backdrop-blur-sm border border-red-900/30 rounded-[2rem] p-8 lg:p-12 relative overflow-hidden transition-all hover:border-red-500/30">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-red-500/5 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/2"></div>
+              <div className="flex items-center gap-4 mb-8">
+                <div className="w-12 h-12 rounded-2xl bg-red-950/50 border border-red-900/50 flex items-center justify-center">
+                  <XCircle className="w-6 h-6 text-red-400" />
+                </div>
+                <h3 className="text-2xl font-bold text-slate-100">The Manual Grind</h3>
+              </div>
+              
+              <ul className="space-y-6">
+                <li className="flex gap-4">
+                   <div className="mt-1"><XCircle className="w-5 h-5 text-red-500/50"/></div>
+                   <div>
+                     <h4 className="font-bold text-white mb-1">Endless University Scouring</h4>
+                     <p className="text-slate-400 text-sm leading-relaxed">Opening hundreds of university tabs to find professors who align with your specific research interests manually.</p>
+                   </div>
+                </li>
+                <li className="flex gap-4">
+                   <div className="mt-1"><XCircle className="w-5 h-5 text-red-500/50"/></div>
+                   <div>
+                     <h4 className="font-bold text-white mb-1">Generic Cold Emails</h4>
+                     <p className="text-slate-400 text-sm leading-relaxed">Sending the same copy-pasted template to 50 professors, resulting in zero replies and marked as spam.</p>
+                   </div>
+                </li>
+                <li className="flex gap-4">
+                   <div className="mt-1"><XCircle className="w-5 h-5 text-red-500/50"/></div>
+                   <div>
+                     <h4 className="font-bold text-white mb-1">Uncertain Profile Gaps</h4>
+                     <p className="text-slate-400 text-sm leading-relaxed">Applying blindly without knowing if your CV actually meets the standard of the target lab.</p>
+                   </div>
+                </li>
+              </ul>
+            </div>
+
+            {/* The Solution (AcademiaGenie) */}
+            <div className="bg-slate-900/40 backdrop-blur-sm border border-indigo-500/30 rounded-[2rem] p-8 lg:p-12 relative overflow-hidden transition-all hover:border-indigo-400/50">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/2"></div>
+              
+              <div className="flex items-center gap-4 mb-8 relative z-10">
+                <div className="w-12 h-12 rounded-2xl bg-indigo-950/50 border border-indigo-500/30 flex items-center justify-center">
+                  <Sparkles className="w-6 h-6 text-indigo-400" />
+                </div>
+                <h3 className="text-2xl font-bold text-indigo-100">The AcademiaGenie Advantage</h3>
+              </div>
+              
+              <ul className="space-y-6 relative z-10">
+                <li className="flex gap-4">
+                   <div className="mt-1"><CheckCircle2 className="w-5 h-5 text-indigo-400"/></div>
+                   <div>
+                     <h4 className="font-bold text-white mb-1">Instant Precision Matching</h4>
+                     <p className="text-slate-400 text-sm leading-relaxed">Upload your CV and instantly get matched with professors actively researching your exact sub-niche globally.</p>
+                   </div>
+                </li>
+                <li className="flex gap-4">
+                   <div className="mt-1"><CheckCircle2 className="w-5 h-5 text-indigo-400"/></div>
+                   <div>
+                     <h4 className="font-bold text-white mb-1">Hyper-Personalized Outreach</h4>
+                     <p className="text-slate-400 text-sm leading-relaxed">Generate bespoke cold emails referencing the professor's latest papers and how your unique skills align.</p>
+                   </div>
+                </li>
+                <li className="flex gap-4">
+                   <div className="mt-1"><CheckCircle2 className="w-5 h-5 text-indigo-400"/></div>
+                   <div>
+                     <h4 className="font-bold text-white mb-1">Strategic Roadmap Planning</h4>
+                     <p className="text-slate-400 text-sm leading-relaxed">Receive a highly targeted, step-by-step roadmap to bridge your skill gaps before you even apply.</p>
+                   </div>
+                </li>
+              </ul>
             </div>
           </div>
         </motion.div>
